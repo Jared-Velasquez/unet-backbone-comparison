@@ -1,3 +1,4 @@
+import argparse
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from skimage import io, color
@@ -34,10 +35,15 @@ optim_vgg=keras.optimizers.Adam(learning_rate)
 BACKBONE_RESNET50 = 'resnet50'
 BACKBONE_VGG19 = 'vgg19'
 
-def main():
+def compare_models(args):
     """Code adapted from Sreenivas Bhattiprolu's Python for Microscopists tutorial on semantic segmentation.
     https://github.com/bnsreenu/python_for_microscopists
     """
+
+    output_dir = args.output
+
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
 
     # Capture training image info as a list
     train_images = []
@@ -126,6 +132,7 @@ def main():
 
     ######################################################################
     print("Training unet model...")
+    unet_output_dir = os.path.join(output_dir, 'unet')
     # U-net model
     unet_model.compile(optimizer=optim_unet, loss=total_loss, metrics=metrics)
 
@@ -146,7 +153,8 @@ def main():
         callbacks=callbacks,
     )
 
-    unet_model.save('unet_50epochs.hdf5')
+    unet_params = os.path.join(unet_output_dir, 'unet_50epochs.hdf5')
+    unet_model.save(unet_params)
 
     # plot training and validation accuracy and loss at each epoch
     loss_unet = history1.history['loss']
@@ -160,7 +168,9 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
-    plt.savefig('unet_loss.png')
+
+    unet_loss_plot = os.path.join(unet_output_dir, 'unet_loss.png')
+    plt.savefig(unet_loss_plot)
 
     # plot iou and f1 score at each epoch
     iou = history1.history['iou_score']
@@ -174,10 +184,13 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Score")
-    plt.savefig('unet_iou_f1_score.png')
+
+    unet_iou_f1_plot = os.path.join(unet_output_dir, 'unet_iou_f1_score.png')
+    plt.savefig(unet_iou_f1_plot)
 
     ######################################################################
     print("Training unet model with resnet50 backbone...")
+    resnet_output_dir = os.path.join(output_dir, 'resnet50')
     # U-net model with resnet50 backbone
     unet_resnet_backbone_model.compile(optimizer=optim_resnet, loss=total_loss, metrics=metrics)
 
@@ -198,7 +211,8 @@ def main():
         callbacks=callbacks,
     )
 
-    unet_resnet_backbone_model.save('resnet50_backbone_50epochs.hdf5')
+    resnet_params = os.path.join(resnet_output_dir, 'resnet50_backbone_50epochs.hdf5')
+    unet_resnet_backbone_model.save(resnet_params)
 
     # plot training and validation accuracy and loss at each epoch
     loss_resnet = history2.history['loss']
@@ -212,7 +226,9 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
-    plt.savefig('resnet50_backbone_loss.png')
+
+    resnet_loss = os.path.join(resnet_output_dir, 'resnet50_backbone_loss.png')
+    plt.savefig(resnet_loss)
 
     # plot iou and f1 score at each epoch
     iou_resnet = history2.history['iou_score']
@@ -226,10 +242,13 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Score")
-    plt.savefig('resnet50_backbone_iou_f1_score.png')
+
+    resnet_iou_f1 = os.path.join(resnet_output_dir, 'resnet50_backbone_iou_f1_score.png')
+    plt.savefig(resnet_iou_f1)
 
     ######################################################################
     print("Training unet model with vgg19 backbone...")
+    vgg_output_dir = os.path.join(output_dir, 'vgg19')
     # U-net model with vgg19 backbone
     unet_vgg_backbone_model.compile(optimizer=optim_vgg, loss=total_loss, metrics=metrics)
 
@@ -250,7 +269,8 @@ def main():
         callbacks=callbacks,
     )
 
-    unet_vgg_backbone_model.save('vgg19_backbone_50epochs.hdf5')
+    vgg_params = os.path.join(vgg_output_dir, 'vgg19_backbone_50epochs.hdf5')
+    unet_vgg_backbone_model.save(vgg_params)
 
     # plot training and validation accuracy and loss at each epoch
     loss_vgg = history3.history['loss']
@@ -264,7 +284,9 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
-    plt.savefig('vgg19_backbone_loss.png')
+
+    vgg_loss = os.path.join(vgg_output_dir, 'vgg19_backbone_loss.png')
+    plt.savefig(vgg_loss)
 
     # plot iou and f1 score at each epoch
     iou_vgg = history3.history['iou_score']
@@ -279,7 +301,9 @@ def main():
     plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Score")
-    plt.savefig('vgg19_backbone_iou_f1_score.png')
+
+    vgg_iou_f1 = os.path.join(vgg_output_dir, 'vgg19_backbone_iou_f1_score.png')
+    plt.savefig(vgg_iou_f1)
 
     print("Training complete.")
 
@@ -300,10 +324,52 @@ def main():
     print("IOU Score: ", iou_vgg[-1])
     print("F1 Score: ", f1_vgg[-1])
 
-    
-    
+    # Test on random image
 
+    import random
+    test_img_number = random.randint(0, len(X_test))
+    test_img = X_test[test_img_number]
+
+    test_img_input = np.expand_dims(test_img, 0)
+    test_img_input_resnet = preprocess_resnet_input(test_img_input)
+    test_img_input_vgg = preprocess_vgg_input(test_img_input)
+
+    test_unet_pred = unet_model.predict(test_img_input)
+    test_unet_resnet_pred = unet_resnet_backbone_model.predict(test_img_input_resnet)
+    test_unet_vgg_pred = unet_vgg_backbone_model.predict(test_img_input_vgg)
+
+    test_unet_prediction = np.argmax(test_unet_pred, axis=3)[0,:,:]
+    test_unet_resnet_prediction = np.argmax(test_unet_resnet_pred, axis=3)[0,:,:]
+    test_unet_vgg_prediction = np.argmax(test_unet_vgg_pred, axis=3)[0,:,:]
+
+    plt.figure(figsize=(12, 8))
+    plt.subplot(221)
+    plt.title("Testing Image")
+    plt.imshow(test_img[:,:,0], cmap='gray')
+    plt.subplot(222)
+    plt.title("U-net Prediction")
+    plt.imshow(test_unet_prediction, cmap='jet')
+    plt.subplot(223)
+    plt.title("U-net with Resnet50 Backbone Prediction")
+    plt.imshow(test_unet_resnet_prediction, cmap='jet')
+    plt.subplot(224)
+    plt.title("U-net with VGG19 Backbone Prediction")
+    plt.imshow(test_unet_vgg_prediction, cmap='jet')
+    plt.savefig(os.path.join(output_dir, 'predictions.png'))
+
+
+def main(args):
+    parser = argparse.ArgumentParser(description='Compare U-net models with different backbones')
+    parser.add_argument(
+        '-o', 
+        '--output', 
+        type=str, 
+        help='Output directory for model comparison'
+    )
+
+    args = parser.parse_args()
+    compare_models(args)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
